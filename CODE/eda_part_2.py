@@ -15,14 +15,27 @@ import matplotlib.pyplot as plt
 from sklearn.metrics import ConfusionMatrixDisplay
 from sklearn.ensemble import RandomForestClassifier
 from PIL import Image
+import json
+from itertools import combinations
+from sklearn.preprocessing import StandardScaler
 
-def train_and_evaluate_classifier(df_train, df_test, classifier, save_dir, writer:SummaryWriter, columns_to_drop = ["filename", "path"]):
+def train_and_evaluate_classifier(df_train, df_test, classifier, save_dir, columns_to_drop = ["filename", "path"]):
     X_train, y_train, X_test, y_test = prepare_data(df_train, df_test, columns_to_drop)
-
+    writer = SummaryWriter(os.path.join(save_dir, "runs"))
     # Apply PCA for dimensionality reduction
     pca = PCA(n_components=0.95)  # Keep components that explain 95% of variance
-    X_train_pca = pca.fit_transform(X_train)
-    X_test_pca = pca.transform(X_test)
+
+    # Scale the data
+    scaler = StandardScaler()
+    X_train_scaled = scaler.fit_transform(X_train)
+    X_test_scaled = scaler.fit_transform(X_test)
+
+    X_train_pca = pca.fit_transform(X_train_scaled)
+
+    # Plot the explained variance ratio
+    plot_variance_explained(pca, save_dir)
+
+    X_test_pca = pca.transform(X_test_scaled)
 
     # Train classifier
     classifier.fit(X_train_pca, y_train)
@@ -43,12 +56,58 @@ def train_and_evaluate_classifier(df_train, df_test, classifier, save_dir, write
     print("F1 Score:", f1)
     print("Classification Report:\n", report)
 
+    # Parse the classification report string
+    report_lines = report.split('\n')
+    class_metrics = {}
+    for line in report_lines[2:-5]:  # Skip header and footer lines
+        tokens = line.split()
+        class_label = int(tokens[0])
+        metrics = {
+            "Precision": float(tokens[1]),
+            "Recall": float(tokens[2]),
+            "F1 Score": float(tokens[3]),
+            "Support": int(tokens[4])
+        }
+        class_metrics[class_label] = metrics
+
+    global_metrics = {}
+    for i, line in enumerate(report_lines[-4:-1]):  # Extract global accuracy, macro avg, and weighted avg
+        tokens = line.split()
+        if i == 0 and tokens:
+            metric_name = tokens[0]
+            metric_value = {
+                    "f1-score": float(tokens[1]),
+                    "support": int(tokens[2])}
+            global_metrics[metric_name] = metric_value
+        elif tokens:
+            metric_name = tokens[0] + " " + tokens[1]
+            metric_value = {
+                    "precision": float(tokens[2]),
+                    "recall": float(tokens[3]),
+                    "f1-score": float(tokens[4]),
+                    "support": int(tokens[5])}
+            global_metrics[metric_name] = metric_value
+
+    class_report = {"Class metrics": class_metrics, "Global metrics": global_metrics}
+    # Store the metrics and report in a dictionary
+    metrics_dict = {
+        "Accuracy": accuracy,
+        "Precision": precision,
+        "Recall": recall,
+        "F1 Score": f1,
+        "Classification Report": class_report
+    }
+
+    # Save the dictionary to a JSON file
+    with open(os.path.join(save_dir, 'metrics.json'), 'w') as json_file:
+        json.dump(metrics_dict, json_file, indent=4)
+
     # Compute confusion matrix
     cm = confusion_matrix(y_test, y_pred)
 
     # Plot confusion matrix
     plt.figure(figsize=(8, 6))
-    ConfusionMatrixDisplay(cm, display_labels=np.unique(y_test)).plot()
+    ConfusionMatrixDisplay(cm, display_labels = np.unique(y_test)).plot()
     plt.title('Confusion Matrix')
     plt.xlabel('Predicted Label')
     plt.ylabel('True Label')
@@ -68,51 +127,12 @@ def train_and_evaluate_classifier(df_train, df_test, classifier, save_dir, write
     cm_image_array = cm_image_array.astype(np.uint8)
     writer.add_image("Confusion Matrix Plot", cm_image_array, dataformats='HWC')
 
-
-    # # Calculate precision and recall for each class
-    # precision = dict()
-    # recall = dict()
-    # for i in range(len(classifier.classes_)):
-    #     y_test_binary = label_binarize(y_test, classes=classifier.classes_)
-    #     y_pred_binary = label_binarize(y_pred, classes=classifier.classes_)
-    #     precision[i], recall[i], _ = precision_recall_curve(y_test_binary[:, i], y_pred_binary[:, i])
-
-    # # Add precision and recall curves to the SummaryWriter for TensorBoard visualization
-    # for i in range(len(classifier.classes_)):
-    #     writer.add_scalar(f'Precision/Class_{i}', precision[i], global_step)
-    #     writer.add_scalar(f'Recall/Class_{i}', recall[i], global_step)
-
-    # # Compute precision-recall curve
-    # precision, recall, _ = precision_recall_curve(y_test, y_pred)
-
-    # # Plot precision-recall curve
-    # plt.figure(figsize=(8, 6))
-    # plt.plot(recall, precision, marker='.')
-    # plt.xlabel('Recall')
-    # plt.ylabel('Precision')
-    # plt.title('Precision-Recall Curve')
-    # plt.grid(True)
-    # plt.tight_layout()
-
-    # # Save the precision-recall curve plot as an image
-    # prc_image_path = os.path.join(save_dir, "precision_recall_curve_plot.png")
-    # plt.savefig(prc_image_path)
-    # plt.close()
-
-    # # Add the precision-recall curve image to the SummaryWriter for TensorBoard visualization
-    # # Load the image using PIL
-    # prc_image_pil = Image.open(prc_image_path)
-    # # Convert the PIL Image to a NumPy array
-    # prc_image_array = np.array(prc_image_pil)# Load the image using PIL
-    # # Convert the data type of the image array to uint8
-    # prc_image_array = prc_image_array.astype(np.uint8)
-    # writer.add_image("Precision-Recall Curve Plot", prc_image_array, dataformats='HWC')
-
     # Add other metrics to TensorBoard
     writer.add_scalar("Accuracy", accuracy)
     writer.add_scalar("Precision", precision)
     writer.add_scalar("Recall", recall)
     writer.add_scalar("F1 Score", f1)
+
 
 def prepare_data(df_train:pd.DataFrame, df_test:pd.DataFrame, columns_to_drop:list[str]):
     df_train = df_train.drop(columns = columns_to_drop)
@@ -130,25 +150,68 @@ def prepare_data(df_train:pd.DataFrame, df_test:pd.DataFrame, columns_to_drop:li
 
     return X_train, y_train_encoded, X_test, y_test_encoded
 
+def plot_variance_explained(pca, save_dir):
+    # Calculate the cumulative sum of explained variance
+    explained_variance_ratio_cumsum = pca.explained_variance_ratio_.cumsum()
+
+    # Plot the cumulative sum of explained variance
+    plt.figure(figsize=(8, 6))
+    plt.plot(explained_variance_ratio_cumsum, marker='o', linestyle='-')
+    plt.xlabel('Number of Components')
+    plt.ylabel('Cumulative Explained Variance Ratio')
+    plt.title('Explained Variance Ratio by PCA Components')
+    plt.grid(True)
+    plt.savefig(os.path.join(save_dir, 'explained_variance_ratio.png'))  # Save the plot as an image
+
 
 def main(data_directory):
-    # Read the train and test datasets
-    df_train = pd.read_pickle(os.path.join(data_directory, "train_dataset_feature_hog.pkl"))
-    df_test = pd.read_pickle(os.path.join(data_directory, "test_dataset_feature_hog.pkl"))
+    descriptors_set = ["lbp", 'hog', 'lab', "color"]
 
-    # print(df_test.columns)
+    # Initialize an empty list to store the combinations
+    descriptor_combinations = []
 
-    # Initialize and train a classifier
-    classifier = RandomForestClassifier()
+    # Generate combinations of all lengths from 2 to the length of descriptors
+    for r in range(1, len(descriptors_set) + 1):
+        # Generate combinations of length r
+        combinations_r = combinations(descriptors_set, r)
+        
+        # Extend the list of all combinations
+        descriptor_combinations.extend(combinations_r)
 
-    # Define the directory to save logs
-    save_dir = "LOGS"
-    # Create a summary writer
-    log_dir = os.makedirs(os.path.join(save_dir, "tensorboard_no_plan", "hog"), exist_ok=True)
-    writer = SummaryWriter(log_dir)
+    # Print all combinations
+    for descriptors in descriptor_combinations:
+        print(descriptors)
 
-    columns_to_drop_no_plan = ["filename", "path", "sagittal", "corona", "axial"]
-    train_and_evaluate_classifier(df_train, df_test, classifier, save_dir, writer, columns_to_drop = columns_to_drop_no_plan)
+    for descriptors in descriptor_combinations:
+        # Initialize an empty DataFrame to store the merged result
+        merged_df_train = pd.DataFrame()
+        merged_df_test = pd.DataFrame()
+
+        # Iterate over each descriptor
+        for descriptor in descriptors:
+            # Read the train and test datasets for the current descriptor
+            df_train = pd.read_pickle(os.path.join(data_directory, f"train_dataset_feature_{descriptor}.pkl"))
+            df_test = pd.read_pickle(os.path.join(data_directory, f"test_dataset_feature_{descriptor}.pkl"))
+            
+            # Merge the DataFrames using the join method
+            merged_df_train = pd.concat([merged_df_train, df_train.drop(columns = ["filename", "path", "label", "sagittal", "corona", "axial"])], axis=1)
+            merged_df_test = pd.concat([merged_df_test, df_test.drop(columns = ["filename", "path", "label", "sagittal", "corona", "axial"])], axis=1)
+
+            merged_df_train[["filename", "path", "label", "sagittal", "corona", "axial"]] = df_train[["filename", "path", "label", "sagittal", "corona", "axial"]]
+            merged_df_test[["filename", "path", "label", "sagittal", "corona", "axial"]] = df_test[["filename", "path", "label", "sagittal", "corona", "axial"]]
+
+        # Initialize and train a classifier
+        classifier = RandomForestClassifier()
+
+        # Define the directory to save logs
+        # Create a summary writer
+        descriptor_dir = '_'.join(descriptors)
+        save_dir = os.path.join("LOGS", "tensorboard_with_plan", descriptor_dir)
+        os.makedirs(save_dir, exist_ok=True)
+
+        columns_to_drop_no_plan = ["filename", "path", "sagittal", "corona", "axial"]
+        columns_to_drop_with_plan = ["filename", "path"]
+        train_and_evaluate_classifier(merged_df_train, merged_df_test, classifier, save_dir, columns_to_drop = columns_to_drop_with_plan)
 
 if __name__ == "__main__":
     os.chdir(r"C:\Users\maron\OneDrive\Bureau\PROJECT")

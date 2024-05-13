@@ -8,6 +8,7 @@ from sklearn.decomposition import PCA
 from sklearn.cluster import KMeans
 import numpy as np
 import os
+from skimage import exposure
 
 
 class ResNetFeature:
@@ -153,22 +154,12 @@ class HOG:
         image = cv2.imread(image_path)
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
-        # # Apply edge detection
-        # edged = imutils.auto_canny(gray)
-
-        # # Find contours in the edge map, keeping only the largest one
-        # # which is presumed to be the car logo
-        # cnts, _ = cv2.findContours(edged.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        # c = max(cnts, key=cv2.contourArea)
-
-        # # Extract the logo of the car and resize it to a canonical width
-        # # and height
-        # (x, y, w, h) = cv2.boundingRect(c)
-        # logo = gray[y:y + h, x:x + w]
-        # logo = cv2.resize(logo, (200, 100))
 
         # Extract Histogram of Oriented Gradients from the logo
-        H = feature.hog(gray, orientations=9, pixels_per_cell=(10, 10), cells_per_block=(2, 2),
-                        transform_sqrt=True, block_norm="L1")
+        (H, hogImage) = feature.hog(gray, orientations=9, pixels_per_cell=(10, 10), cells_per_block=(2, 2),
+                        transform_sqrt=True, block_norm="L1", visualize=True)
+        
+        hogImage = exposure.rescale_intensity(hogImage, out_range=(0, 255))
+        hogImage = hogImage.astype("uint8")
 
-        return H
+        return H, hogImage
