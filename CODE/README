@@ -1,0 +1,6 @@
+to install a library on a virtual environement: 
+
+c:/Users/maron/OneDrive/02-Documents/00.ETUDES/00.ECOLE_D_INGE
+/00.CYCLE_ING_FORMATION_INIT/00.3EME_ANNEE_INIT/00.A_COURS/00.
+SEMETRE2/LSMA/03.ACTIVITIES/PROJECT
+/.venv/Scripts/python.exe -m pip install torchvision -U --force-reinstall
