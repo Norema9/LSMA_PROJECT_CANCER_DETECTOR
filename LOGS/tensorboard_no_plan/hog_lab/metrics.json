@@ -1,44 +1,44 @@
 {
-    "Accuracy": 0.8793273986152325,
-    "Precision": 0.9020767516137541,
-    "Recall": 0.8793273986152325,
-    "F1 Score": 0.8747831747183417,
+    "Accuracy": 0.8902077151335311,
+    "Precision": 0.9076876798688223,
+    "Recall": 0.8902077151335311,
+    "F1 Score": 0.8863225011373771,
     "Classification Report": {
         "Class metrics": {
-            "0": {
+            "meningioma": {
                 "Precision": 0.98,
-                "Recall": 0.64,
-                "F1 Score": 0.77,
+                "Recall": 0.67,
+                "F1 Score": 0.79,
                 "Support": 306
             },
-            "1": {
+            "notumor": {
                 "Precision": 0.96,
                 "Recall": 0.99,
                 "F1 Score": 0.97,
                 "Support": 405
             },
-            "2": {
-                "Precision": 0.74,
+            "pituitary": {
+                "Precision": 0.77,
                 "Recall": 0.98,
-                "F1 Score": 0.84,
+                "F1 Score": 0.86,
                 "Support": 300
             }
         },
         "Global metrics": {
             "accuracy": {
-                "f1-score": 0.88,
+                "f1-score": 0.89,
                 "support": 1011
             },
             "macro avg": {
-                "precision": 0.89,
-                "recall": 0.87,
-                "f1-score": 0.86,
+                "precision": 0.9,
+                "recall": 0.88,
+                "f1-score": 0.88,
                 "support": 1011
             },
             "weighted avg": {
-                "precision": 0.9,
-                "recall": 0.88,
-                "f1-score": 0.87,
+                "precision": 0.91,
+                "recall": 0.89,
+                "f1-score": 0.89,
                 "support": 1011
             }
         }
