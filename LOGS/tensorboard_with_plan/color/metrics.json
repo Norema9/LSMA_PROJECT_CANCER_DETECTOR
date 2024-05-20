@@ -1,44 +1,44 @@
 {
-    "Accuracy": 0.7210682492581603,
-    "Precision": 0.71551930136756,
-    "Recall": 0.7210682492581603,
-    "F1 Score": 0.7143724877140669,
+    "Accuracy": 0.6904055390702275,
+    "Precision": 0.6888898833337043,
+    "Recall": 0.6904055390702275,
+    "F1 Score": 0.6874418167475919,
     "Classification Report": {
         "Class metrics": {
-            "0": {
-                "Precision": 0.62,
-                "Recall": 0.48,
-                "F1 Score": 0.54,
+            "meningioma": {
+                "Precision": 0.53,
+                "Recall": 0.58,
+                "F1 Score": 0.55,
                 "Support": 306
             },
-            "1": {
-                "Precision": 0.83,
-                "Recall": 0.86,
-                "F1 Score": 0.85,
+            "notumor": {
+                "Precision": 0.84,
+                "Recall": 0.89,
+                "F1 Score": 0.86,
                 "Support": 405
             },
-            "2": {
-                "Precision": 0.66,
-                "Recall": 0.77,
-                "F1 Score": 0.71,
+            "pituitary": {
+                "Precision": 0.65,
+                "Recall": 0.54,
+                "F1 Score": 0.59,
                 "Support": 300
             }
         },
         "Global metrics": {
             "accuracy": {
-                "f1-score": 0.72,
+                "f1-score": 0.69,
                 "support": 1011
             },
             "macro avg": {
-                "precision": 0.7,
-                "recall": 0.71,
-                "f1-score": 0.7,
+                "precision": 0.67,
+                "recall": 0.67,
+                "f1-score": 0.67,
                 "support": 1011
             },
             "weighted avg": {
-                "precision": 0.72,
-                "recall": 0.72,
-                "f1-score": 0.71,
+                "precision": 0.69,
+                "recall": 0.69,
+                "f1-score": 0.69,
                 "support": 1011
             }
         }

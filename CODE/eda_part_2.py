@@ -18,9 +18,10 @@ from PIL import Image
 import json
 from itertools import combinations
 from sklearn.preprocessing import StandardScaler
+import random
 
 def train_and_evaluate_classifier(df_train, df_test, classifier, save_dir, columns_to_drop = ["filename", "path"]):
-    X_train, y_train, X_test, y_test = prepare_data(df_train, df_test, columns_to_drop)
+    X_train, y_train, X_test, y_test, label_encoder = prepare_data(df_train, df_test, columns_to_drop)
     writer = SummaryWriter(os.path.join(save_dir, "runs"))
     # Apply PCA for dimensionality reduction
     pca = PCA(n_components=0.95)  # Keep components that explain 95% of variance
@@ -34,6 +35,7 @@ def train_and_evaluate_classifier(df_train, df_test, classifier, save_dir, colum
 
     # Plot the explained variance ratio
     plot_variance_explained(pca, save_dir)
+    plot_feature_participation_before_pca(X_train, pca, save_dir)
 
     X_test_pca = pca.transform(X_test_scaled)
 
@@ -42,6 +44,23 @@ def train_and_evaluate_classifier(df_train, df_test, classifier, save_dir, colum
 
     # Predict on test set
     y_pred = classifier.predict(X_test_pca)
+    y_pred_original = label_encoder.inverse_transform(y_pred)
+
+    # Randomly select 20 images for each predicted label
+    if "hog_img_path" in df_test.columns or "lab_hist_path" in df_test.columns:
+        for label in set(y_pred_original):
+            for plan in set(df_test['plan']):
+                indices = [i for i, (y, p) in enumerate(zip(y_pred_original, df_test['plan'])) if y == label and p == plan]
+                selected_indices = random.sample(indices, min(20, len(indices)))
+                if "hog_img_path" in df_test.columns:
+                    selected_image_hog_paths = df_test.loc[selected_indices, 'hog_img_path'].tolist()
+                    tag_lab = f'HOG_Histtogram_Label_{label}_Plan_{plan}'
+                    add_images_writer(selected_image_hog_paths, writer, tag_lab)
+                if "lab_hist_path" in df_test.columns:
+                    selected_image_lab_paths = df_test.loc[selected_indices, 'lab_hist_path'].tolist()
+                    tag_hog = f'LAB_Histtogram_Label_{label}_Plan_{plan}'
+                    add_images_writer(selected_image_lab_paths, writer, tag_hog)
+    
 
     # Evaluate the classifier
     accuracy = accuracy_score(y_test, y_pred)
@@ -61,7 +80,7 @@ def train_and_evaluate_classifier(df_train, df_test, classifier, save_dir, colum
     class_metrics = {}
     for line in report_lines[2:-5]:  # Skip header and footer lines
         tokens = line.split()
-        class_label = int(tokens[0])
+        class_label = label_encoder.inverse_transform([int(tokens[0])])[0]
         metrics = {
             "Precision": float(tokens[1]),
             "Recall": float(tokens[2]),
@@ -137,6 +156,15 @@ def train_and_evaluate_classifier(df_train, df_test, classifier, save_dir, colum
 def prepare_data(df_train:pd.DataFrame, df_test:pd.DataFrame, columns_to_drop:list[str]):
     df_train = df_train.drop(columns = columns_to_drop)
     df_test = df_test.drop(columns = columns_to_drop)
+    
+    if "hog_img_path" in df_test.columns or "lab_hist_path" in df_test.columns:
+        if "hog_img_path" in df_test.columns:
+            df_train = df_train.drop(columns = ["hog_img_path"])
+            df_test = df_test.drop(columns = ["hog_img_path"]) 
+        if "lab_hist_path" in df_test.columns:
+            df_train = df_train.drop(columns = ["lab_hist_path"])
+            df_test = df_test.drop(columns = ["lab_hist_path"]) 
+
     # Separate features (X) and labels (y)
     X_train = df_train.drop(columns=["label"])
     y_train = df_train["label"]
@@ -148,7 +176,7 @@ def prepare_data(df_train:pd.DataFrame, df_test:pd.DataFrame, columns_to_drop:li
     y_train_encoded = label_encoder.fit_transform(y_train)
     y_test_encoded = label_encoder.transform(y_test)
 
-    return X_train, y_train_encoded, X_test, y_test_encoded
+    return X_train, y_train_encoded, X_test, y_test_encoded, label_encoder
 
 def plot_variance_explained(pca, save_dir):
     # Calculate the cumulative sum of explained variance
@@ -161,8 +189,37 @@ def plot_variance_explained(pca, save_dir):
     plt.ylabel('Cumulative Explained Variance Ratio')
     plt.title('Explained Variance Ratio by PCA Components')
     plt.grid(True)
+    plt.savefig(os.path.join(save_dir, 'cumulate_explained_variance_ratio.png'))  # Save the plot as an image
+
+def plot_feature_participation_before_pca(X_train, pca, save_dir):
+    # Get the absolute values of the coefficients of the first two principal components
+    PC1 = pca.components_[0]
+    PC2 = pca.components_[1]
+
+    # Get the feature names
+    features = X_train.columns
+
+    # Plot the participation of each feature in the first two principal components
+    plt.figure(figsize=(10, 5))
+    plt.subplot(121)
+    plt.barh(features, PC1)
+    plt.title("PC1")
+    plt.subplot(122)
+    plt.barh(features, PC2)
+    plt.title("PC2")
+    plt.tight_layout()
     plt.savefig(os.path.join(save_dir, 'explained_variance_ratio.png'))  # Save the plot as an image
 
+
+def add_images_writer(image_paths, writer, tag):
+    fig, axes = plt.subplots(4, 5, figsize=(15, 12))
+    fig.suptitle(tag)
+    axes = axes.flatten()
+    for i, (path, ax) in enumerate(zip(image_paths, axes)):
+        img = plt.imread(path)
+        ax.imshow(img)
+        ax.axis('off')
+    writer.add_figure(tag, fig)
 
 def main(data_directory):
     descriptors_set = ["lbp", 'hog', 'lab', "color"]
@@ -194,11 +251,11 @@ def main(data_directory):
             df_test = pd.read_pickle(os.path.join(data_directory, f"test_dataset_feature_{descriptor}.pkl"))
             
             # Merge the DataFrames using the join method
-            merged_df_train = pd.concat([merged_df_train, df_train.drop(columns = ["filename", "path", "label", "sagittal", "corona", "axial"])], axis=1)
-            merged_df_test = pd.concat([merged_df_test, df_test.drop(columns = ["filename", "path", "label", "sagittal", "corona", "axial"])], axis=1)
+            merged_df_train = pd.concat([merged_df_train, df_train.drop(columns = ["filename", "path", "label", "sagittal", "corona", "axial", "plan"])], axis=1)
+            merged_df_test = pd.concat([merged_df_test, df_test.drop(columns = ["filename", "path", "label", "sagittal", "corona", "axial", "plan"])], axis=1)
 
-            merged_df_train[["filename", "path", "label", "sagittal", "corona", "axial"]] = df_train[["filename", "path", "label", "sagittal", "corona", "axial"]]
-            merged_df_test[["filename", "path", "label", "sagittal", "corona", "axial"]] = df_test[["filename", "path", "label", "sagittal", "corona", "axial"]]
+            merged_df_train[["filename", "path", "label", "sagittal", "corona", "axial", "plan"]] = df_train[["filename", "path", "label", "sagittal", "corona", "axial", "plan"]]
+            merged_df_test[["filename", "path", "label", "sagittal", "corona", "axial", "plan"]] = df_test[["filename", "path", "label", "sagittal", "corona", "axial", "plan"]]
 
         # Initialize and train a classifier
         classifier = RandomForestClassifier()
@@ -209,8 +266,8 @@ def main(data_directory):
         save_dir = os.path.join("LOGS", "tensorboard_with_plan", descriptor_dir)
         os.makedirs(save_dir, exist_ok=True)
 
-        columns_to_drop_no_plan = ["filename", "path", "sagittal", "corona", "axial"]
-        columns_to_drop_with_plan = ["filename", "path"]
+        columns_to_drop_no_plan = ["filename", "path", "sagittal", "corona", "axial", "plan"]
+        columns_to_drop_with_plan = ["filename", "path", "plan"]
         train_and_evaluate_classifier(merged_df_train, merged_df_test, classifier, save_dir, columns_to_drop = columns_to_drop_with_plan)
 
 if __name__ == "__main__":
