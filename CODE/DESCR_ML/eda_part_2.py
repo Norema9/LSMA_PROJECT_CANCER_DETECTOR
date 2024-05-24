@@ -21,6 +21,16 @@ from sklearn.preprocessing import StandardScaler
 import random
 
 def train_and_evaluate_classifier(df_train, df_test, classifier, save_dir, columns_to_drop = ["filename", "path"]):
+    """
+    Train and evaluate a classifier using the prepared data.
+
+    Parameters:
+    - df_train (pd.DataFrame): DataFrame containing the training dataset.
+    - df_test (pd.DataFrame): DataFrame containing the testing dataset.
+    - classifier: Classifier object to train and evaluate.
+    - save_dir (str): Directory to save logs and results.
+    - columns_to_drop (list): List of column names to drop from the datasets.
+    """
     X_train, y_train, X_test, y_test, label_encoder = prepare_data(df_train, df_test, columns_to_drop)
     writer = SummaryWriter(os.path.join(save_dir, "runs"))
     # Apply PCA for dimensionality reduction
@@ -154,6 +164,22 @@ def train_and_evaluate_classifier(df_train, df_test, classifier, save_dir, colum
 
 
 def prepare_data(df_train:pd.DataFrame, df_test:pd.DataFrame, columns_to_drop:list[str]):
+    """
+    Prepare the data into numpy array after removing the not needed columns from them.
+
+    Parameters:
+    - df_train (pd.DataFrame): DataFrame containing the training dataset.
+    - df_test (pd.DataFrame): DataFrame containing the testing dataset.
+    - columns_to_drop (list): List of column names to drop from the datasets.
+
+
+    outputs:
+    - X_train(numpy array): train input data
+    - y_train_encoded(numpy array): train output or encoded label data
+    - X_test(numpy array): test input data
+    - y_test_encoded(numpy array): test output or encoded label data
+    - label_encoder: Label encoder will be used to decode the class for visualization
+    """
     df_train = df_train.drop(columns = columns_to_drop)
     df_test = df_test.drop(columns = columns_to_drop)
     
@@ -266,6 +292,8 @@ def main(data_directory):
         save_dir = os.path.join("LOGS", "tensorboard_no_plan", descriptor_dir)
         os.makedirs(save_dir, exist_ok=True)
 
+        # These variables help us to chose  to introduce or not the plan feature in our train
+        #TODO: Consider changing it into a boolean variable instead of having two variable
         columns_to_drop_no_plan = ["filename", "path", "sagittal", "corona", "axial", "plan"]
         columns_to_drop_with_plan = ["filename", "path", "plan"]
         train_and_evaluate_classifier(merged_df_train, merged_df_test, classifier, save_dir, columns_to_drop = columns_to_drop_no_plan)

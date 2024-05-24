@@ -8,6 +8,20 @@ import matplotlib.pyplot as plt
 import cv2
 
 def add_section_columns(df:pd.DataFrame, axial_images, coronal_images, sagittal_images):
+
+    """
+    Add section columns to the DataFrame based on image types.
+
+    Parameters:
+    - df (pd.DataFrame): DataFrame containing the dataset.
+    - axial_images (list): List of filenames corresponding to axial images.
+    - coronal_images (list): List of filenames corresponding to coronal images.
+    - sagittal_images (list): List of filenames corresponding to sagittal images.
+
+    Returns:
+    - section (list): List containing rows with added section columns.
+    """
+
     section = []
 
     for index, row in tqdm(df.iterrows()):
@@ -34,6 +48,18 @@ def add_section_columns(df:pd.DataFrame, axial_images, coronal_images, sagittal_
 
 
 def main(processed_direct, dataset_directory, axial_dir, corona_dir, sagital_dir):
+
+    """
+    Main function to process datasets and extract features.
+
+    Parameters:
+    - processed_direct (str): Directory to store processed data.
+    - dataset_directory (str): Directory containing datasets.
+    - axial_dir (str): Directory containing axial images.
+    - corona_dir (str): Directory containing coronal images.
+    - sagittal_dir (str): Directory containing sagittal images.
+    """
+
     # Read the train and test datasets
     df_train = pd.read_csv(os.path.join(dataset_directory, "train_dataset.csv"), sep="|")
     df_test = pd.read_csv(os.path.join(dataset_directory, "test_dataset.csv"), sep="|")

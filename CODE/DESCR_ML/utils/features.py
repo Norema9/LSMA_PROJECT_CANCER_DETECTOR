@@ -34,10 +34,10 @@ class ColorChannelStatistic:
         """
         Extracts color channel statistics from an image.
 
-        Args:
+        Parameters:
             image_path (str): The path to the input image.
 
-        Returns:
+        Outputs:
             numpy.ndarray: Concatenated mean and standard deviation of each color channel.
         """
         # Read the image using OpenCV
@@ -57,7 +57,7 @@ class LabHistogram:
         """
         Initialize the LabHistogram object.
 
-        Args:
+        Parameters:
             bins (list): Number of bins for each dimension of the histogram. Default is [8, 8, 8].
         """
         # Store the number of bins for the histogram
@@ -67,11 +67,11 @@ class LabHistogram:
         """
         Compute the L*a*b* color histogram of an image.
 
-        Args:
+        Parameters:
             image_path (str): Path to the input image.
             mask (numpy.ndarray, optional): Mask to apply to the image. Default is None.
 
-        Returns:
+        Outputs:
             numpy.ndarray: Flattened L*a*b* color histogram.
         """
         # Read the image using OpenCV
@@ -94,7 +94,7 @@ class LocalBinaryPatterns:
         """
         Initialize the LocalBinaryPatterns object.
 
-        Args:
+        Parameters:
             numPoints (int): Number of points to use for LBP.
             radius (int): Radius of the circle to consider for LBP.
         """
@@ -106,11 +106,11 @@ class LocalBinaryPatterns:
         """
         Compute the Local Binary Pattern (LBP) histogram of an image.
 
-        Args:
+        Parameters:
             image_path (str): Path to the input image.
             eps (float, optional): Small value to avoid division by zero when normalizing histogram. Default is 1e-7.
 
-        Returns:
+        Output:
             numpy.ndarray: Normalized histogram of Local Binary Patterns.
         """
         # Read the image using OpenCV
@@ -144,10 +144,10 @@ class HOG:
         """
         Compute the Histogram of Oriented Gradients (HOG) descriptor of an image.
 
-        Args:
+        Parameters:
             image_path (str): Path to the input image.
 
-        Returns:
+        Output:
             numpy.ndarray: HOG descriptor.
         """
         # Read the image using OpenCV and convert it to grayscale
